@@ -13,7 +13,6 @@ public class PuzzleBooksManager : MonoBehaviour
         if (_opened) return;
 
         _placedCount++;
-        Debug.Log($"Libros colocados: {_placedCount}/{requiredBooks}");
 
         if (_placedCount >= requiredBooks)
         {

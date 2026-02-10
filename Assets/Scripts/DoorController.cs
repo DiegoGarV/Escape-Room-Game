@@ -21,7 +21,7 @@ public class DoorController : MonoBehaviour
 
     void Update()
     {
-        if (!_isOpen && CoinCounter.Instance != null && CoinCounter.Instance.Coins >= coinsRequired)
+        if (!_isOpen && ProgressManager.Instance != null && ProgressManager.Instance.Coins >= coinsRequired)
         {
             Open();
         }
@@ -37,6 +37,13 @@ public class DoorController : MonoBehaviour
 
     public void Open()
     {
+        if (_isOpen) return;
         _isOpen = true;
+
+        var info = GetComponent<DoorAudioInfo>();
+        var type = info != null ? info.type : DoorType.Wood;
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayDoorOpenSfx3D(type, transform.position);
     }
 }

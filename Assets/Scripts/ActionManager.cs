@@ -24,8 +24,8 @@ public class ActionManager : MonoBehaviour
     [Header("Tags")]
     [SerializeField] private string collectableTag = "Collectable";
     [SerializeField] private string doorTag = "Door";
-    
     [SerializeField] private string barrelTag = "Barrel";
+    [SerializeField] private string drawerTag = "Drawer";
 
     private Transform heldObject;
 
@@ -47,7 +47,29 @@ public class ActionManager : MonoBehaviour
 
     void Update()
     {
+
         if (Mouse.current == null) return;
+
+        if (Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            if (UIManager.Instance != null && UIManager.Instance.IsInspecting)
+            {
+                UIManager.Instance.CloseInspector();
+                return;
+            }
+
+            if (heldObject != null && UIManager.Instance != null)
+            {
+                var inspectable = heldObject.GetComponentInParent<CollectableInfo>();
+                if (inspectable != null)
+                {
+                    UIManager.Instance.OpenInspector(inspectable);
+                    return;
+                }
+            }
+        }
+
+        if (UIManager.Instance != null && UIManager.Instance.IsInspecting) return;
 
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
@@ -58,19 +80,17 @@ public class ActionManager : MonoBehaviour
             
             if (heldObject != null)
             {
-                // Cuando tengo un objeto en la mano, reviso qué estoy clickeando
+                
                 var hits = Physics.RaycastAll(
                     cam.transform.position,
                     cam.transform.forward,
                     interactDistance,
-                    ~0, // todo
+                    ~0,
                     QueryTriggerInteraction.Ignore
                 );
 
-                // Ordena por distancia (lo más cercano primero)
                 System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-                // 1) Prioridad: puerta (para no romper la mecánica de la llave)
                 foreach (var h in hits)
                 {
                     if (h.collider != null && h.collider.CompareTag(doorTag))
@@ -84,7 +104,6 @@ public class ActionManager : MonoBehaviour
                     }
                 }
 
-                // 2) Luego: barril (colocar libro si aplica)
                 foreach (var h in hits)
                 {
                     if (h.collider != null && h.collider.CompareTag(barrelTag))
@@ -92,17 +111,25 @@ public class ActionManager : MonoBehaviour
                         var slot = h.collider.GetComponentInParent<BarrelBookClickSlot>();
                         if (slot != null)
                         {
-                            // Si lo colocó, NO dropear
                             if (slot.TryPlaceHeldBook(this))
                                 return;
                         }
                     }
                 }
 
-                // 3) Si no fue puerta ni se colocó en barril -> dropear
                 DropHeldObject(cam);
                 return;
 
+            }
+
+            if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, interactDistance, interactMask, QueryTriggerInteraction.Ignore))
+            {
+                var drawer = hit.collider.GetComponentInParent<DrawerSlide>();
+                if (drawer != null && drawer.CompareTag(drawerTag))
+                {
+                    drawer.Toggle();
+                    return;
+                }
             }
 
             if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hit, collectDistance, collectableMask, QueryTriggerInteraction.Ignore))
@@ -110,9 +137,23 @@ public class ActionManager : MonoBehaviour
                 if (hit.collider != null && hit.collider.CompareTag(collectableTag))
                 {
                     PickUpObject(hit.collider.transform);
+                    return;
                 }
             }
-            
+
+        }
+
+        if (Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            if (heldObject == null) return;
+
+            var inspectable = heldObject.GetComponentInParent<CollectableInfo>();
+            if (inspectable == null) return;
+
+            if (UIManager.Instance != null)
+                UIManager.Instance.ToggleInspector(inspectable);
+
+            return;
         }
     }
 
@@ -125,7 +166,13 @@ public class ActionManager : MonoBehaviour
     private void PickUpObject(Transform obj)
     {
         heldObject = obj;
-        
+
+        var info = heldObject.GetComponentInParent<CollectableInfo>();
+        if (info != null && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayPickupSfx(info.type);
+        }
+
         var rb = heldObject.GetComponent<Rigidbody>();
         if (rb != null) rb.isKinematic = true;
 
@@ -164,7 +211,6 @@ public class ActionManager : MonoBehaviour
         return heldObject;
     }
 
-    // Esto suelta el held del anchor SIN tirarlo al piso
     public void ClearHeldWithoutDropping()
     {
         heldObject = null;

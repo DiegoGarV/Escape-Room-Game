@@ -2,5 +2,6 @@ public enum BookColor
 {
     Red,
     Green,
-    Blue
+    Blue,
+    Brown
 }

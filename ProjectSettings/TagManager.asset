@@ -9,6 +9,7 @@ TagManager:
   - Ground
   - Door
   - Barrel
+  - Drawer
   layers:
   - Default
   - TransparentFX
